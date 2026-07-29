@@ -1,20 +1,14 @@
 # dependencies
 node_modules/
 
-# next.js
+# next
 .next/
 out/
 
-# build artifacts
-dist/
-build/
-coverage/
-*.tsbuildinfo
-
-# environment / secrets
+# env
 .env
-.env.*
-!.env.example
+.env.local
+.env.*.local
 
 # logs
 npm-debug.log*
@@ -22,10 +16,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# system
+# misc
 .DS_Store
-Thumbs.db
-
-# prisma local db (if sqlite used later)
-prisma/*.db
-prisma/*.db-journal
+coverage/

@@ -14,22 +14,55 @@ enum HealthDataStatus {
   FAILED
 }
 
+enum AuditAction {
+  AUTH_REGISTER_SUCCESS
+  AUTH_REGISTER_FAILED
+  AUTH_LOGIN_SUCCESS
+  AUTH_LOGIN_FAILED
+  DATA_UPLOAD
+  DATA_ACCESS
+  DATA_DELETE
+  CHAT_ACCESS
+  CHAT_MESSAGE_CREATE
+}
+
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                String             @id @default(cuid())
+  email             String             @unique
+  passwordHash      String
+  name              String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  healthDataRecords HealthDataRecord[]
+  auditLogs         AuditLog[]
 }
 
 model HealthDataRecord {
   id           String           @id @default(cuid())
   userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   originalUrl  String
   parsedJson   Json?
   status       HealthDataStatus @default(PENDING)
   errorMessage String?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
+
+  @@index([userId, status])
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      String?
+  user        User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      AuditAction
+  resource    String
+  resourceId  String?
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }

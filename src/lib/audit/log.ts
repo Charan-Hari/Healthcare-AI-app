@@ -9,6 +9,7 @@ type AuditInput = {
   metadata?: Record<string, unknown>;
   ipAddress?: string | null;
   userAgent?: string | null;
+  requestId?: string;
 };
 
 export async function writeAuditLog(input: AuditInput): Promise<void> {
@@ -19,13 +20,15 @@ export async function writeAuditLog(input: AuditInput): Promise<void> {
         action: input.action,
         resource: input.resource,
         resourceId: input.resourceId,
-        metadata: input.metadata,
+        metadata: {
+          ...(input.metadata ?? {}),
+          requestId: input.requestId ?? null,
+        },
         ipAddress: input.ipAddress ?? null,
         userAgent: input.userAgent ?? null,
       },
     });
   } catch (error) {
-    // never block business flow because of audit write failure
     console.error("Audit log write failed", error);
   }
 }

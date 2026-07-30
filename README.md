@@ -53,26 +53,32 @@ Note: Full compliance (ISO 27001, SOC2, GDPR, PCI DSS) also requires organizatio
 
 ## Getting Started
 
-1) Clone
+1) Clone Repository
+```bash
 git clone https://github.com/<your-username>/Healthcare-AI-app.git
 cd Healthcare-AI-app
-
-2) Install
+```
+2) Install Dependencies
+```bash
 npm ci
-
+```
 3) Configure env
+```bash
 cp .env.example .env
-
+```
 4) Start dependencies
+```bash
 docker compose up -d database redis
-
+```
 5) Prisma
+```bash
 npx prisma generate
 npx prisma migrate dev
-
+```
 6) Run app
+```bash
 npm run dev
-
+```
 App URL:
 http://localhost:3000
 
@@ -117,10 +123,14 @@ npm audit --audit-level=high
 
 ## Docker
 Build:
+```bash
 docker build -t healthcare-ai-app:latest .
+```
 
 Run:
+```bash
 docker run -p 3000:3000 --env-file .env healthcare-ai-app:latest
+```
 
 ## CI Pipeline
 - Secret scan (Gitleaks)

@@ -77,6 +77,8 @@ App URL:
 http://localhost:3000
 
 ## Environment Variables (.env.example)
+
+```env
 NODE_ENV=development
 NEXTAUTH_URL=http://localhost:3000
 AUTH_SECRET=replace_with_strong_secret
@@ -85,6 +87,7 @@ REDIS_ENABLED=true
 REDIS_URL=redis://localhost:6379
 ALLOWED_ORIGINS=http://localhost:3000
 LOG_LEVEL=info
+```
 
 ## Secret Safety
 - Never commit .env files

@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
-import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { writeAuditLog } from "@/lib/audit/log";
 import { AuditAction } from "@prisma/client";
 import { withApiHandler } from "@/lib/http/api-handler";
 import { handleOptions } from "@/lib/http/security";
+import { loginSchema } from "@/modules/auth/login.schema";
+import type { LoginInput } from "@/modules/auth/login.schema";
+import { LoginService } from "@/modules/auth/login.service";
 
-const loginSchema = z.object({
-  email: z.string().email().max(254),
-  password: z.string().min(1).max(128),
-});
+const loginService = new LoginService();
 
 export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent }) => {
   const ipKey = ipAddress || "unknown";
@@ -38,29 +35,15 @@ export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent
     return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   }
 
-  const email = parsed.data.email.trim().toLowerCase();
-  const user = await prisma.user.findUnique({ where: { email } });
+  const input: LoginInput = parsed.data;
+  const result = await loginService.login(input);
 
-  if (!user) {
+  if (!result.ok) {
     await writeAuditLog({
+      userId: "userId" in result ? result.userId : undefined,
       action: AuditAction.AUTH_LOGIN_FAILED,
       resource: "auth_login",
-      metadata: { reason: "user_not_found", email },
-      ipAddress,
-      userAgent,
-      requestId,
-    });
-    return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
-  }
-
-  const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
-  if (!valid) {
-    await writeAuditLog({
-      userId: user.id,
-      action: AuditAction.AUTH_LOGIN_FAILED,
-      resource: "auth_login",
-      resourceId: user.id,
-      metadata: { reason: "bad_password" },
+      metadata: { reason: result.code, email: parsed.data.email.toLowerCase() },
       ipAddress,
       userAgent,
       requestId,
@@ -69,21 +52,18 @@ export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent
   }
 
   await writeAuditLog({
-    userId: user.id,
+    userId: result.user.id,
     action: AuditAction.AUTH_LOGIN_SUCCESS,
     resource: "auth_login",
-    resourceId: user.id,
-    metadata: { email: user.email },
+    resourceId: result.user.id,
+    metadata: { email: result.user.email },
     ipAddress,
     userAgent,
     requestId,
   });
 
-  logger.info({ requestId, userId: user.id }, "User login success");
-  return NextResponse.json(
-    { ok: true, user: { id: user.id, email: user.email, name: user.name } },
-    { status: 200 }
-  );
+  logger.info({ requestId, userId: result.user.id }, "User login success");
+  return NextResponse.json({ ok: true, user: result.user }, { status: 200 });
 });
 
 export async function OPTIONS(req: NextRequest) {

@@ -3,16 +3,16 @@ import { logger } from "@/lib/logger";
 import { getRequestContext } from "@/lib/http/request-id";
 import { applySecurityHeaders } from "@/lib/http/security";
 
-type Handler<T = unknown> = (ctx: {
+type Handler = (ctx: {
   req: NextRequest;
   requestId: string;
   ipAddress: string | null;
   userAgent: string | null;
-}) => Promise<NextResponse<T>>;
+}) => Promise<NextResponse>;
 
-export function withApiHandler<T = unknown>(handler: Handler<T>) {
-  return async function wrapped(req: NextRequest): Promise<NextResponse<T | { error: string; requestId: string }>> {
-    const { requestId, ipAddress, userAgent } = await getRequestContext();
+export function withApiHandler(handler: Handler) {
+  return async function wrapped(req: NextRequest): Promise<NextResponse> {
+    const { requestId, ipAddress, userAgent } = await getRequestContext(req);
 
     try {
       const res = await handler({ req, requestId, ipAddress, userAgent });

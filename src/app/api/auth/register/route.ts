@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/db/prisma";
-import { registerSchema } from "@/lib/validation/auth";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { writeAuditLog } from "@/lib/audit/log";
 import { AuditAction } from "@prisma/client";
 import { withApiHandler } from "@/lib/http/api-handler";
 import { handleOptions } from "@/lib/http/security";
+import { registerSchema } from "@/modules/auth/auth.schema";
+import type { RegisterInput } from "@/modules/auth/auth.schema";
+import { AuthService } from "@/modules/auth/auth.service";
+
+const authService = new AuthService();
 
 export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent }) => {
   const ipKey = ipAddress || "unknown";
@@ -37,19 +39,14 @@ export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent
     );
   }
 
-  const { email, password, name } = parsed.data;
-  const normalizedEmail = email.trim().toLowerCase();
+  const input: RegisterInput = parsed.data;
+  const result = await authService.register(input);
 
-  const existing = await prisma.user.findUnique({
-    where: { email: normalizedEmail },
-    select: { id: true },
-  });
-
-  if (existing) {
+  if (!result.ok) {
     await writeAuditLog({
       action: AuditAction.AUTH_REGISTER_FAILED,
       resource: "auth_register",
-      metadata: { reason: "already_exists", email: normalizedEmail },
+      metadata: { reason: "already_exists", email: parsed.data.email.toLowerCase() },
       ipAddress,
       userAgent,
       requestId,
@@ -58,26 +55,19 @@ export const POST = withApiHandler(async ({ req, requestId, ipAddress, userAgent
     return NextResponse.json({ error: "User already exists" }, { status: 409 });
   }
 
-  const passwordHash = await bcrypt.hash(password, 12);
-
-  const user = await prisma.user.create({
-    data: { email: normalizedEmail, passwordHash, name: name?.trim() },
-    select: { id: true, email: true, name: true, createdAt: true },
-  });
-
   await writeAuditLog({
-    userId: user.id,
+    userId: result.user.id,
     action: AuditAction.AUTH_REGISTER_SUCCESS,
     resource: "auth_register",
-    resourceId: user.id,
-    metadata: { email: user.email },
+    resourceId: result.user.id,
+    metadata: { email: result.user.email },
     ipAddress,
     userAgent,
     requestId,
   });
 
-  logger.info({ requestId, userId: user.id }, "User registered");
-  return NextResponse.json({ ok: true, user }, { status: 201 });
+  logger.info({ requestId, userId: result.user.id }, "User registered");
+  return NextResponse.json({ ok: true, user: result.user }, { status: 201 });
 });
 
 export async function OPTIONS(req: NextRequest) {
